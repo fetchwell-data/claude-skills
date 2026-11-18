@@ -1,0 +1,85 @@
+{
+  "name": "Daily Google News monitor → Google Sheets (Apify)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "triggerAtHour": 8 }] }
+      },
+      "id": "a1f0c0de-0001-4000-8000-000000000001",
+      "name": "Every day at 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/fetchwelldata~google-news-reliable/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"queries\": [\"your brand\", \"your competitor\"],\n  \"timeRange\": \"1d\",\n  \"country\": \"US\",\n  \"language\": \"en\",\n  \"maxArticlesPerQuery\": 100,\n  \"resolveArticleUrls\": true\n}",
+        "options": { "timeout": 300000 }
+      },
+      "id": "a1f0c0de-0002-4000-8000-000000000002",
+      "name": "Apify: Google News Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "notes": "Credential: Header Auth with Name = Authorization, Value = Bearer <your Apify API token>."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "empty", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0003-4000-8000-000000000003",
+      "name": "Skip error rows",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "url", "value": "PASTE_YOUR_GOOGLE_SHEET_URL" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Sheet1" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.publishedAt }}",
+            "Query": "={{ $json.query }}",
+            "Headline": "={{ $json.title }}",
+            "Source": "={{ $json.source }}",
+            "Link": "={{ $json.articleUrl || $json.googleNewsUrl }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0004-4000-8000-000000000004",
+      "name": "Append to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [780, 0]
+    }
+  ],
+  "connections": {
+    "Every day at 08:00": { "main": [[{ "node": "Apify: Google News Scraper", "type": "main", "index": 0 }]] },
+    "Apify: Google News Scraper": { "main": [[{ "node": "Skip error rows", "type": "main", "index": 0 }]] },
+    "Skip error rows": { "main": [[{ "node": "Append to Google Sheet", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}
